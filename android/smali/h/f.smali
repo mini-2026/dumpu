@@ -36,7 +36,7 @@
 
     .line 4
     :cond_0
-    const-string v0, "https://github.com/dlsdml99-create/dumpu/"
+    const-string v0, "https://github.com/mini-2026/dumpu/"
 
     .line 5
     .line 6
@@ -52,7 +52,7 @@
 
     .line 11
     .line 12
-    const-string v0, "https://dlsdml99-create.github.io/dumpu/"
+    const-string v0, "https://mini-2026.github.io/dumpu/"
 
     .line 13
     .line 14

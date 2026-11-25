@@ -1,0 +1,15 @@
+{
+ "name": "덤푸",
+ "apk": "dumpu.apk",
+ "tag": "name",
+ "web": true,
+ "webroot": "assets",
+ "intro": [
+  "먼슬리에 할 일을 생각나는 대로 적어요.",
+  "주차·요일 버튼 한 번으로 위클리·데일리에 옮겨 정리해요."
+ ],
+ "redirects": [
+  "guide.html",
+  "app.html"
+ ]
+}
