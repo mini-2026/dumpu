@@ -310,6 +310,7 @@ function addTasks(text,extra){
   // 카테고리를 안 골랐으면, 전에 같은 이름으로 적은 일의 카테고리를 그대로 (가장 최근 것)
   const nk=x=>String(x||'').replace(/\s+/g,'').toLowerCase(),lastTag=new Map(),Dm=data();
   for(const t of [...Dm.reps,...Dm.tasks])if(Number.isInteger(t.tag)&&t.tag>=0&&t.tag<Dm.settings.tags.length)lastTag.set(nk(t.text),t.tag);
+  const added=[];
   for(let l of lines){let dd=splitDate(l,extra);if(dd)l=dd.rest;let p=splitTime(l);
     if(!dd&&p.time){const d2=splitDate(p.text,extra);if(d2){dd=d2;p.text=d2.rest}} // "3시 금요일 치과"
     if(p.bad)bad++;if(p.guess&&!guess)guess=p.guess;
@@ -317,14 +318,19 @@ function addTasks(text,extra){
     if(!o.src)o.src=extra&&Number.isInteger(extra.week)?'w':'m'; // 먼슬리·위클리에서 적은 일은 시간이 있어도 먼슬리 목록에 보여요
     if(dd){o.day=dd.day;o.month=mkOf(dd.day);o.week=weekOfDay(dd.day);dated++}
     if(o.tag==null&&lastTag.has(nk(o.text))){o.tag=lastTag.get(nk(o.text));memo++}
-    data().tasks.push(o)}
+    data().tasks.push(o);added.push(o)}
+  // 같은 달에 같은 할 일이 이미 있으면 알려 주고 '빼기'로 방금 넣은 것만 빼기
+  const dup=added.filter(o=>data().tasks.some(t=>t!==o&&!added.includes(t)&&t.month===o.month&&nk(t.text)===nk(o.text)));
+  if(dup.length)setTimeout(()=>{const ids=new Set(dup.map(o=>o.id)),mo=(+dup[0].month.slice(5))+'월';
+    toast(dup.length===1?mo+'에 이미 있는 할 일이에요: "'+dup[0].text.slice(0,20)+'"':dup.length+'개는 '+mo+'에 이미 있는 할 일이에요',
+      ()=>{const D=data();D.tasks=D.tasks.filter(t=>!ids.has(t.id));save();render();toast(dup.length===1?'방금 넣은 할 일을 뺐어요':'방금 넣은 '+dup.length+'개를 뺐어요')},'빼기')},0);
   // 덧붙일 안내는 차례로 하나씩 보여 주기
   const more=[];
   if(bad)more.push('25시처럼 없는 시간은 시간 없이 넣었어요. 길게 눌러 시간을 고칠 수 있어요');
   if(dated)more.push(dated+'개는 적은 날짜에 넣었어요 (예: 내일·금요일·25일)');
   if(memo)more.push(memo===lines.length&&memo===1?'전에 고른 "'+(Dm.settings.tags[data().tasks[data().tasks.length-1].tag]||'')+'" 카테고리로 넣었어요':memo+'개는 전에 고른 카테고리로 넣었어요');
   if(guess)more.push(guess+'시는 오후 '+guess+'시로 넣었어요. 새벽이면 "오전 '+guess+'시"로 적어 주세요');
-  more.forEach((m,i)=>setTimeout(()=>toast(m),1700+i*2600));
+  more.forEach((m,i)=>setTimeout(()=>toast(m),(dup.length?8200:1700)+i*2600));
   save();return lines.length;
 }
 function toggle(t){const u=snap(t);delete t.autoDone;t.done=!t.done;t.doneAt=t.done?todayS():null;save();rerender();toast(t.done?md(t.doneAt)+' 완료로 기록했어요':'완료를 취소했어요',u)}
@@ -936,6 +942,7 @@ function vDaily(){
       h('div',{class:'t'},h('b',{text:'데일리'}),h('span',{text:(dt.getMonth()+1)+'월 '+(wi+1)+'주차 · '+DOW[dowOf(d)]+'요일'+(d===todayS()?' · 오늘':'')}),labs.length?h('div',null,labelSpans(d,'lab big')):null),
       h('div',{class:'nav'},h('button',{type:'button','aria-label':'전날',text:'‹',on:{click:()=>shift(-1)}}),h('button',{type:'button','aria-label':'다음날',text:'›',on:{click:()=>shift(1)}}),searchBtn(),gearBtn())),
     d===todayS()?lateBox('day'):null,
+    habitBar(d),
     h('div',{class:'add'},inp,h('button',{class:'go',type:'button',text:'추가',on:{click:go}})),
     h('div',{class:'linkrow'},h('button',{type:'button',class:'linkbtn',text:'+ 한 번에 여러 개 적기',on:{click:()=>multiAdd(md(d)+' 할 일 적기',{week:wi,day:d,month:mkOf(d),src:'d'},md(d)+'에')}}),
       h('button',{type:'button',class:'linkbtn rt',text:'🔁 루틴 한 번에 넣기'+((data().routines||[]).length?'':' (기상·등원 준비처럼)'),on:{click:()=>routineSheet(d)}})),tagPicker(),
@@ -1077,6 +1084,14 @@ const ICON_SETS=[
 ];
 const iconsOf=t=>{try{return [...new Intl.Segmenter('ko',{granularity:'grapheme'}).segment(t)].map(x=>x.segment)}catch(e){return (t.match(/(\p{Extended_Pictographic}\uFE0F?(\u200D\p{Extended_Pictographic}\uFE0F?)*|\p{Emoji_Presentation})/gu)||[])}};
 const hbMark=hb=>hb.icon||'♥';
+// 데일리 맨 위 '오늘 습관' 버튼 줄: 누르면 바로 했어요 표시
+function habitBar(d){
+  if(d>todayS())return null;
+  const H=activeHabits().filter(hb=>habitOn(hb,d)&&(!hb.since||hb.since<=d));
+  if(!H.length)return null;
+  return h('div',{class:'hbar'},h('span',{class:'lb',text:d===todayS()?'오늘 습관':'이 날 습관'}),
+    H.map(hb=>{const on=habitDone(hb,d);return h('button',{type:'button',class:'chip'+(on?' on':''),'aria-pressed':String(on),'aria-label':hb.name+(on?' 했어요':' 안 했어요'),on:{click:()=>toggleHabit(hb,d)}},(on?'✓ ':'')+hb.name)}));
+}
 function habitDone(hb,d){return ((data().hchk||{})[d]||[]).includes(hb.id)}
 // 습관 요일: 없으면 매일. 정한 요일만 칸·달성률에 셈
 const isPaused=(hb,d)=>Array.isArray(hb.pauses)&&hb.pauses.some(p=>d>=p.a&&d<=p.b);
