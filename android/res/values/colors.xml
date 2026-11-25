@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="cobalt">#ff1f3fa6</color>
+    <color name="icon_bg">#ffdff5ea</color>
+    <color name="ink">#ff1a2340</color>
+    <color name="muted">#ff6b7290</color>
+    <color name="notification_action_color_filter">@color/secondary_text_default_material_light</color>
+    <color name="notification_icon_bg_color">#ff9e9e9e</color>
+    <color name="paper">#fffbfaf6</color>
+    <color name="ripple_material_light">#1f000000</color>
+    <color name="secondary_text_default_material_light">#8a000000</color>
+    <color name="soft">#ffeef1fb</color>
+</resources>

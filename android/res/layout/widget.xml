@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:id="@id/w_root" android:background="@drawable/widget_bg" android:padding="12.0dip" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:orientation="horizontal" android:id="@id/w_head" android:paddingBottom="4.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content">
+        <TextView android:textSize="13.0sp" android:textStyle="bold" android:textColor="@color/ink" android:id="@id/w_title" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="덤푸 · 오늘" android:layout_weight="1.0" />
+        <TextView android:textSize="13.0sp" android:textStyle="bold" android:textColor="@color/cobalt" android:id="@id/w_count" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+    <LinearLayout android:orientation="horizontal" android:id="@id/w_hab" android:paddingBottom="2.0dip" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content">
+        <TextView android:id="@id/w_h0" style="@style/WHab" />
+        <TextView android:id="@id/w_h1" style="@style/WHab" />
+        <TextView android:id="@id/w_h2" style="@style/WHab" />
+        <TextView android:id="@id/w_h3" style="@style/WHab" />
+    </LinearLayout>
+    <TextView android:id="@id/w_r0" style="@style/WRow" />
+    <TextView android:id="@id/w_r1" style="@style/WRow" />
+    <TextView android:id="@id/w_r2" style="@style/WRow" />
+    <TextView android:id="@id/w_r3" style="@style/WRow" />
+    <TextView android:textSize="12.0sp" android:textColor="@color/muted" android:id="@id/w_more" android:layout_width="fill_parent" android:layout_height="wrap_content" />
+</LinearLayout>
