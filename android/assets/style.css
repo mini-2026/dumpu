@@ -577,3 +577,4 @@ button.lab.big.tap{font-size:12px}
 .weeks{flex-wrap:wrap;overflow:visible}
 .ver,.ver.new{width:52px;min-height:48px;font-size:14px}
 .ver.new{color:#F5B400;background:var(--card);font-weight:800;text-shadow:0 0 1px rgba(0,0,0,.35)}
+.upbar{display:block;height:8px;margin-top:8px;border-radius:999px;background:var(--line);overflow:hidden}.upbar i{display:block;height:100%;border-radius:inherit;background:var(--cobalt);transition:width .2s}.sheet .btn:disabled{opacity:.6}

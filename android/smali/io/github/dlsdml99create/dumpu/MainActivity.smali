@@ -197,6 +197,8 @@
     .line 1
     invoke-super {p0, p1, p2, p3}, Landroid/app/Activity;->onActivityResult(IILandroid/content/Intent;)V
 
+    invoke-static {p0, p1}, Lupd/U;->onResult(Landroid/app/Activity;I)V
+
     const/16 v0, 0x1c85
 
     if-eq p1, v0, :cond_0
@@ -329,6 +331,8 @@
 
     .line 1
     invoke-super {p0, p1}, Landroid/app/Activity;->onCreate(Landroid/os/Bundle;)V
+
+    invoke-static {p0}, Lupd/U;->clean(Landroid/content/Context;)V
 
     .line 2
     .line 3

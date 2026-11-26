@@ -65,7 +65,9 @@ jobs:
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
           NAME=$(python3 -c "import json;print(json.load(open('site/about.json'))['name'])")
-          gh release create "$TAG" "$APK" --title "$NAME v$VER" --notes "$NAME v$VER" --target "$GITHUB_SHA"
+          # 제목은 "덤푸 v2.31" 한 번만. 본문은 제목을 되풀이하지 않고 이번 업데이트 내용(앱 안 정보 창과 같은 글)
+          node -e "global.window={};global.document={querySelector:()=>null};global.location={protocol:'file:'};require('./android/assets/config.js');const n=window.APP_INFO.notes[0];if(String(n[0])!==process.env.VER)process.exit(1);console.log([].concat(n[2]).map(t=>'- '+t).join('\\n'))" > /tmp/notes.md || echo "업데이트 내용은 앱 왼쪽 아래 버전을 눌러 볼 수 있어요." > /tmp/notes.md
+          gh release create "$TAG" "$APK" --title "$NAME v$VER" --notes-file /tmp/notes.md --target "$GITHUB_SHA"
   site:
     needs: apk
     if: always()

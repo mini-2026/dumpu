@@ -21,6 +21,11 @@
     if (statusEl) statusEl.textContent = statusText();
   }
   function statusText() {
+    if (inApp() && UPD.st === 'dl') return UPD.n >= 0 ? '새 버전 받는 중 ' + UPD.n + '%' : '새 버전 받는 중이에요…';
+    if (inApp() && UPD.st === 'ok') return "다 받았어요. 열린 설치 화면에서 '업데이트'를 눌러 주세요. 적어 둔 할 일은 그대로 남아요.";
+    if (inApp() && UPD.st === 'perm') return "처음 한 번만 설치 허용이 필요해요. 열린 설정 화면에서 '이 출처 허용'을 켜고 돌아오면 이어서 설치해요.";
+    if (inApp() && UPD.st === 'permno') return "설치 허용이 꺼져 있어서 설치하지 못했어요. '이 출처 허용'을 켜고 다시 해 보거나 브라우저로 받아 주세요.";
+    if (inApp() && UPD.st === 'fail') return '새 버전을 받지 못했어요. ' + (UPD_WHY[UPD.why] || UPD_WHY.net);
     if (!I.online) return '미리보기에서는 새 버전을 확인하지 않아요';
     if (checking) return '새 버전을 확인하는 중이에요…';
     if (hasNew()) return '새 버전(v' + latest + ')이 나왔어요';
@@ -29,7 +34,31 @@
     return '지금 쓰는 버전이 최신이에요.';
   }
 
+  // 앱 안에서 새 버전 받기 (안드로이드 앱): 받는 중 % → 검사 → 설치 화면. 안 되면 브라우저로 받기
+  function inApp() { return isApp() && typeof window.Bridge.installUpdate === 'function'; }
+  var UPD = { st: '', n: -1, why: '' }, UPD_KEY = 'dumpu-upd-wait', updEl = null;
+  var UPD_WHY = {
+    net: '인터넷 연결을 확인하고 다시 해 주세요.',
+    size: '파일이 예상보다 커서 받기를 멈췄어요.',
+    bad: '받은 파일이 망가졌어요. 다시 받아 주세요.',
+    pkg: '덤푸 앱 파일이 아니라서 설치하지 않았어요.',
+    sign: '덤푸에서 만든 파일인지 확인되지 않아 설치하지 않았어요.',
+    old: '받은 파일이 지금 쓰는 버전과 같거나 더 예전 버전이에요.',
+    none: '새 버전 파일을 찾지 못했어요.',
+    open: '설치 화면을 열지 못했어요.'
+  };
+  function updWait(on) { try { if (on) localStorage.setItem(UPD_KEY, String(Date.now())); else localStorage.removeItem(UPD_KEY); } catch (e) {} }
+  function updGet() {
+    if (!inApp()) { update(); return; }
+    if (UPD.st === 'dl') return;
+    UPD.st = 'dl'; UPD.n = -1; UPD.why = ''; updPaint();
+    try { window.Bridge.installUpdate(); } catch (e) { UPD.st = 'fail'; UPD.why = 'open'; updPaint(); }
+  }
+  function updBrowser() {
+    try { if (window.Bridge.updateInBrowser) window.Bridge.updateInBrowser(); else window.Bridge.openUrl(APK); } catch (e) {}
+  }
   function update() {
+    if (inApp()) { updGet(); return; }
     if (isApp()) { window.Bridge.openUrl(APK); }
     else { location.reload(); }
   }
@@ -60,12 +89,12 @@
     dlg = mk('div', 'dim upd-dim');
     var box = mk('div', 'upd-box'); box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-labelledby', 'upd-t');
     var t1 = mk('h3', null, '새 버전(v' + latest + ')이 나왔어요'); t1.id = 'upd-t';
-        var p2 = mk('p', null, isApp() ? '\'업데이트\'를 누르면 파일을 내려받아요. 다 받으면 알림에서 파일을 눌러 설치해 주세요. 적어 둔 내용은 그대로 남아요.' : '\'업데이트\'를 누르면 바로 새 버전으로 바뀌어요.');
+        var p2 = mk('p', null, inApp() ? '\'업데이트\'를 누르면 앱 안에서 새 버전을 받고 설치 화면을 열어요. 적어 둔 할 일은 그대로 남아요.' : isApp() ? '\'업데이트\'를 누르면 파일을 내려받아요. 다 받으면 알림에서 파일을 눌러 설치해 주세요. 적어 둔 내용은 그대로 남아요.' : '\'업데이트\'를 누르면 바로 새 버전으로 바뀌어요.');
     var row = mk('div', 'upd-row');
     var later = mk('button', 'upd-later', '나중에'); later.type = 'button';
     later.onclick = function () { try { localStorage.setItem(k, String(Date.now())); } catch (e) {} closeDlg(); };
     var go = mk('button', 'upd-go', '업데이트'); go.type = 'button';
-    go.onclick = function () { closeDlg(); update(); };
+    go.onclick = function () { closeDlg(); if (inApp()) { if (!layer) open(); updGet(); } else update(); };
     row.append(later, go); box.append(t1, p2, row); dlg.append(box); document.body.append(dlg);
   }
   function closeDlg() { if (dlg) { dlg.remove(); dlg = null; } }
@@ -75,7 +104,7 @@
     resumed = true; asked = false; check(false); // 오래 켜 둔 앱도 다시 볼 때 확인
   });
 
-  function close() { if (dlg) { closeDlg(); return true; } if (layer) { layer.remove(); layer = null; statusEl = null; return true; } return false; }
+  function close() { if (dlg) { closeDlg(); return true; } if (layer) { layer.remove(); layer = null; statusEl = null; updEl = null; return true; } return false; }
 
   var sheetBox = null;
   function render() {
@@ -84,14 +113,9 @@
     var h3 = mk('h3'); h3.append(I.name + ' '); h3.append(mk('span', 'pill' + (hasNew() ? ' new' : ''), 'v' + I.version));
     var xb = mk('button', 'shx', '×'); xb.type = 'button'; xb.setAttribute('aria-label', '정보 창 닫기'); xb.onclick = function () { close(); };
     statusEl = mk('p', 'ai-st', statusText()); statusEl.setAttribute('aria-live', 'polite');
-    sheetBox.append(xb, h3, statusEl);
-    if (hasNew()) {
-      var up = mk('button', 'btn pri', isApp() ? '업데이트 받기 (v' + latest + ')' : '새로고침해서 업데이트');
-      up.type = 'button'; up.onclick = update; sheetBox.append(up);
-      if (isApp()) sheetBox.append(mk('p', null, '받은 파일을 열어 설치하면 돼요. 적어 둔 할 일은 그대로 남아요.'));
-    }
-    var ck = mk('button', 'btn', '새 버전 확인'); ck.type = 'button'; ck.onclick = function () { check(true); };
-    sheetBox.append(ck);
+    updEl = mk('div', 'ai-upd');
+    sheetBox.append(xb, h3, statusEl, updEl);
+    updPaint();
     if (I.backup) {
       sheetBox.append(mk('div', 'sec', '내 기록 백업'));
       if (I.backup.block) { I.backup.block(function () { close(); }).forEach(function (n) { if (n) sheetBox.append(n); }); }
@@ -120,6 +144,28 @@
     var pg = mk('p', null, '다운로드 페이지: ' + PAGE); pg.style.userSelect = 'text'; sheetBox.append(pg);
   }
 
+  // 정보 창의 상태 글·받는 정도·버튼만 다시 그려요 (창 전체를 다시 그리지 않아서 스크롤이 그대로예요)
+  function updPaint() {
+    if (statusEl) statusEl.textContent = statusText();
+    if (!updEl) return;
+    updEl.replaceChildren();
+    function B(t, main, fn, dis) { var b = mk('button', 'btn' + (main ? ' pri' : ''), t); b.type = 'button'; b.onclick = fn; if (dis) b.disabled = true; updEl.append(b); return b; }
+    var S = inApp() ? UPD.st : '';
+    if (S === 'dl') {
+      var bar = mk('span', 'upbar'); bar.setAttribute('aria-hidden', 'true'); var fill = mk('i'); fill.style.width = Math.max(0, UPD.n) + '%'; bar.append(fill); updEl.append(bar);
+      B('받는 중…', true, null, true); return;
+    }
+    if (S === 'ok') { B('설치 화면 다시 열기', true, updGet); return; }
+    if (S === 'perm') { B('설치 허용 켜러 가기', true, updGet); return; }
+    if (S === 'permno' || S === 'fail') { B('다시 해 보기', true, updGet); B('브라우저로 받기', false, updBrowser); return; }
+    if (hasNew()) {
+      B(isApp() ? '업데이트 받기 (v' + latest + ')' : '새로고침해서 업데이트', true, update);
+      if (isApp() && !inApp()) updEl.append(mk('p', null, '받은 파일을 열어 설치하면 돼요. 적어 둔 할 일은 그대로 남아요.'));
+      else if (inApp()) updEl.append(mk('p', null, '앱 안에서 받아 바로 설치 화면을 열어요. 적어 둔 할 일은 그대로 남아요.'));
+    }
+    B('새 버전 확인', false, function () { check(true); }, checking);
+  }
+
   function open() {
     close();
     layer = mk('div', 'dim');
@@ -133,6 +179,14 @@
   window.AppInfo = {
     close: close,
     isOpen: function () { return !!layer || !!dlg; },
+    updState: function (st, v) {
+      UPD.st = String(st || ''); UPD.n = UPD.st === 'dl' ? Math.max(-1, Math.min(100, Math.round(+v))) : -1; UPD.why = UPD.st === 'fail' ? String(v || '') : '';
+      if (isNaN(UPD.n)) UPD.n = -1;
+      updWait(UPD.st === 'perm');
+      updPaint();
+    },
+    // 앱을 켤 때 뜨는 '새 버전이 나왔어요' 알림에서 '업데이트'를 누름
+    updStart: function () { closeDlg(); if (!layer) open(); updGet(); },
     native: function (v) { if (/^v?\d+(\.\d+)*$/.test(String(v))) { latest = String(v).replace(/^v/, ''); paint(); } },
     init: function () {
       el = document.querySelector(I.mount);
@@ -140,6 +194,8 @@
       el.addEventListener('click', open);
       paint();
       check(false);
+      // 설치 허용을 켜는 사이 앱이 다시 시작됐으면(10분 안) 저절로 이어 받기
+      if (inApp()) { var w = 0; try { w = +localStorage.getItem(UPD_KEY) || 0; } catch (e) {} updWait(false); if (w && Date.now() - w < 600e3) setTimeout(function () { window.AppInfo.updStart(); }, 700); }
     }
   };
 })();
