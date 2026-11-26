@@ -557,3 +557,23 @@ button.lab.big.tap{font-size:12px}
 .away-box{display:flex;flex-direction:column;gap:6px;padding:14px;border:1px dashed var(--line);border-radius:14px;background:var(--card);margin:0 0 12px}
 .away-box b{font-size:15px}.away-box span{font-size:13px;color:var(--muted)}.away-box .two{margin-top:4px}
 .tt-p .row .txt{min-width:0}
+
+/* v2.30 누르는 곳 48px · 글씨 14px · 글자 대비 4.5:1 */
+:root{--tagc:#23704A;--addc:#555B75}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--tagc:var(--grass);--addc:var(--muted)}}
+:root[data-theme="dark"]{--tagc:var(--grass);--addc:var(--muted)}
+.tag{color:var(--tagc)}
+.tl-add{color:var(--addc)}
+.addbig span,.linkbtn,.hint,.sec,.tag,.rp,.chip,.weeks .chip,.tags .lb,.wklb,.brush .lb,.set small,.sheet p,.bar button,.head .t span,.mtop .head .t span,.strip button,.cal .dow,.cal .d,.imgbtn,.tt-more,.late-box,.demo,.pill,.two label,.pop-t,.pop-e,.pop-a button,.tsum small,.tipbar,.rtp,.rt-each,.memo-line,.away-box span,.toast,.note b,.lab.big,button.lab.big.tap,.rt-line select,.rt-nt,.ht-nb,.nz .ht-nb,.tt-h,.note-r,.tsum,.tsum .ratio{font-size:14px}
+.chip::after{height:48px}
+.nav button{width:40px;height:40px}.nav button::after{inset:-4px}
+.mood{width:44px;height:44px}.mood::after{inset:-2px}
+.brbtn::after,.tmgo::after{inset:-10px}
+.linkbtn,.imgbtn,.empty button,.demo .demo-x,.leave-row button,.sheet > details > summary,.tt-p .tl-add,.tt-more{min-height:48px}
+.chip.wk{min-width:34px}
+.ht-c{position:relative}
+.ht-c::before{content:"";position:absolute;left:-1px;right:-1px;top:50%;height:48px;transform:translateY(-50%)}
+.ht-head .ht-s{white-space:normal;line-height:1.1;font-size:12px;text-align:center}
+.weeks{flex-wrap:wrap;overflow:visible}
+.ver,.ver.new{width:52px;min-height:48px;font-size:14px}
+.ver.new{color:#F5B400;background:var(--card);font-weight:800;text-shadow:0 0 1px rgba(0,0,0,.35)}
