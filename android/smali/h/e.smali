@@ -70,6 +70,16 @@
     .line 17
     invoke-virtual {v1}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
 
+    invoke-static {v1, v2}, Lupd/U;->size(Landroid/content/Context;Landroid/net/Uri;)J
+
+    move-result-wide v3
+
+    const-wide/32 v5, 0xe4e1c0
+
+    cmp-long v5, v3, v5
+
+    if-gtz v5, :big_known
+
     .line 18
     .line 19
     .line 20
@@ -145,10 +155,12 @@
 
     .line 52
     .line 53
-    move-object v3, v0
+    invoke-virtual {v2}, Ljava/io/InputStream;->close()V
+
+    const-wide/16 v3, -0x1
 
     .line 54
-    goto :goto_1
+    goto :big_known
 
     .line 55
     :cond_0
@@ -248,11 +260,32 @@
 
     .line 92
     .line 93
-    const-string v0, "null"
+    const-string v0, "window.AppInfo&&AppInfo.backupOpenFail&&AppInfo.backupOpenFail('read',0)"
 
-    .line 94
-    .line 95
-    goto :goto_5
+    invoke-virtual {v1, v0}, Lio/github/dlsdml99create/dumpu/MainActivity;->a(Ljava/lang/String;)V
+
+    return-void
+
+    :big_known
+    new-instance v0, Ljava/lang/StringBuilder;
+
+    const-string v2, "window.AppInfo&&AppInfo.backupOpenFail&&AppInfo.backupOpenFail('big',"
+
+    invoke-direct {v0, v2}, Ljava/lang/StringBuilder;-><init>(Ljava/lang/String;)V
+
+    invoke-virtual {v0, v3, v4}, Ljava/lang/StringBuilder;->append(J)Ljava/lang/StringBuilder;
+
+    const-string v2, ")"
+
+    invoke-virtual {v0, v2}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+
+    move-result-object v0
+
+    invoke-virtual {v1, v0}, Lio/github/dlsdml99create/dumpu/MainActivity;->a(Ljava/lang/String;)V
+
+    return-void
 
     .line 96
     :cond_4

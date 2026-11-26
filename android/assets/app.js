@@ -2040,13 +2040,18 @@ function importData(o){
   const nT=out.settings.tags.length;out.tasks.forEach(t=>{if(t.tag!=null&&t.tag>=nT)t.tag=null});Object.values(out.ents).forEach(e=>{if(e.tag!=null&&e.tag>=nT)e.tag=null});out.habits.forEach(e=>{if(e.tag!=null&&e.tag>=nT)e.tag=null});out.reps.forEach(r=>{if(r.tag!=null&&r.tag>=nT)r.tag=null});
   return out;
 }
+/* 백업 파일을 골랐는데 못 읽음: 너무 큼(크기 모르면 -1) · 읽기 실패. 고르기 취소(__bkOpened(null,'cancel'))와 구분. 앱(네이티브)도 같은 한도(15MB) */
+const BK_MAX=15000000;
+function bkOpenFail(kind,bytes){const b=+bytes||0;
+  if(kind==='big')toast('백업 파일이 너무 커요'+(b>0?' ('+(b/1e6).toFixed(1)+'MB)':'')+'. '+(BK_MAX/1e6)+'MB까지 불러올 수 있어요');
+  else toast('백업 파일을 읽지 못했어요. 다시 골라 주세요')}
 function importSheet(pre){
   const ta=h('textarea',{id:'impTxt',rows:'4',class:'code',placeholder:'또는 복사해 둔 백업 글을 여기에 붙여 넣어요'});
   const pw=h('input',{type:'password',id:'impPw',maxlength:'40',autocomplete:'off',placeholder:'잠근 백업이면 비밀번호','aria-label':'백업 비밀번호'});
   if(typeof pre==='string'&&pre)pw.value=pre;
   const go=()=>{
       const txt=ta.value.trim();if(!txt){toast('백업 파일을 고르거나 백업 글을 붙여 넣어 주세요');return}
-      if(txt.length>12000000){toast('백업이 너무 커서 한 번에 못 불러와요');return}
+      if(txt.length>BK_MAX){bkOpenFail('big',txt.length);return}
       const bad=()=>toast('덤푸 백업이 아니에요. 덤푸에서 저장한 백업 파일을 골라 주세요');
       if(txt.startsWith('DUMPU2L:')){if(!pw.value){toast('비밀번호가 걸린 백업이에요. 비밀번호를 넣고 "불러오기"를 눌러 주세요');pw.focus();return}
         let o;try{o=JSON.parse(txt.slice(8))}catch(e){bad();return}
@@ -2055,8 +2060,8 @@ function importSheet(pre){
       confirmImp(out)};
   const got=t=>{if(t==null){return}ta.value=t;go()};
   window.__bkOpened=(t,why)=>{if(t==null){if(why!=='cancel')toast('파일을 읽지 못했어요. 다시 골라 주세요');return}got(t)};
-  const fi=h('input',{type:'file',accept:'.json,.txt,application/json,text/plain',hidden:'hidden',on:{change:()=>{const f=fi.files&&fi.files[0];fi.value='';if(!f)return;if(f.size>12000000){toast('백업이 너무 커서 한 번에 못 불러와요');return}
-    const r=new FileReader();r.onload=()=>got(String(r.result||''));r.onerror=()=>toast('파일을 읽지 못했어요. 다시 골라 주세요');r.readAsText(f)}}});
+  const fi=h('input',{type:'file',accept:'.json,.txt,application/json,text/plain',hidden:'hidden',on:{change:()=>{const f=fi.files&&fi.files[0];fi.value='';if(!f)return;if(f.size>BK_MAX){bkOpenFail('big',f.size);return}
+    const r=new FileReader();r.onload=()=>got(String(r.result||''));r.onerror=()=>bkOpenFail('read');r.readAsText(f)}}});
   sheet(h('h3',{text:'백업 불러오기'}),h('p',{text:'불러오기 전에 지금 기록과 백업에 든 개수를 보여 드리고 한 번 더 물어봐요.'}),pw,
     h('button',{class:'btn pri',type:'button',text:'백업 파일 고르기',on:{click:()=>{if(B&&B.backupOpen)B.backupOpen();else fi.click()}}}),fi,
     h('div',{class:'sec',text:'백업 글로 불러오기'}),ta,
@@ -2106,7 +2111,7 @@ syncNative();
 setTimeout(monNudge,700);
 if(brokenSaved)setTimeout(()=>toast('저장된 기록을 읽지 못해 새로 시작했어요. 예전 기록은 앱 안에 따로 남겨 두었으니, 앱을 지우지 말고 그대로 두어 주세요'),300);
 if(window.APP_INFO)window.APP_INFO.backup={save:backupSaveClick,open:importSheet,block:backupBlock}; // 버전 창에서도 백업
-if(window.AppInfo)AppInfo.init();
+if(window.AppInfo){AppInfo.backupOpenFail=(k,b)=>bkOpenFail(k,b);AppInfo.init()}
 function onBack2App(){applyWidgetOps();render();syncNative();setTimeout(monNudge,400)}
 window.__onResume=onBack2App;
 document.addEventListener('focusin',e=>{if(e.target.closest('#app input,#app textarea'))document.body.classList.add('typing')});
