@@ -318,13 +318,13 @@ function addTasks(text,extra){
   // 카테고리를 안 골랐으면, 전에 같은 이름으로 적은 일의 카테고리를 그대로 (가장 최근 것)
   const nk=x=>String(x||'').replace(/\s+/g,'').toLowerCase(),lastTag=new Map(),Dm=data();
   for(const t of [...Dm.reps,...Dm.tasks])if(Number.isInteger(t.tag)&&t.tag>=0&&t.tag<Dm.settings.tags.length)lastTag.set(nk(t.text),t.tag);
-  const added=[];
+  const added=[],pastT=[];
   for(let l of lines){let dd=splitDate(l,extra);if(dd)l=dd.rest;let p=splitTime(l);
     if(!dd&&p.time){const d2=splitDate(p.text,extra);if(d2){dd=d2;p.text=d2.rest}} // "3시 금요일 치과"
     if(p.bad)bad++;if(p.guess&&!guess)guess=p.guess;
     const o=Object.assign({id:uid(),text:p.text,tag:st.addTag,rep:null,month:mKey(),week:null,day:null,time:p.time,done:false,doneAt:null},extra||{});
     if(!o.src)o.src=extra&&Number.isInteger(extra.week)?'w':'m'; // 먼슬리·위클리에서 적은 일은 시간이 있어도 먼슬리 목록에 보여요
-    if(dd){o.day=dd.day;o.month=mkOf(dd.day);o.week=weekOfDay(dd.day);dated++}
+    if(dd){o.day=dd.day;o.month=mkOf(dd.day);o.week=weekOfDay(dd.day);dated++;if(dd.day<todayS())pastT.push(o)}
     if(o.tag==null&&lastTag.has(nk(o.text))){o.tag=lastTag.get(nk(o.text));memo++}
     data().tasks.push(o);added.push(o)}
   // 같은 달에 같은 할 일이 이미 있으면 알려 주고 '빼기'로 방금 넣은 것만 빼기
@@ -332,6 +332,11 @@ function addTasks(text,extra){
   if(dup.length)setTimeout(()=>{const ids=new Set(dup.map(o=>o.id)),mo=(+dup[0].month.slice(5))+'월';
     toast(dup.length===1?mo+'에 이미 있는 할 일이에요: "'+dup[0].text.slice(0,20)+'"':dup.length+'개는 '+mo+'에 이미 있는 할 일이에요',
       ()=>{const D=data();D.tasks=D.tasks.filter(t=>!ids.has(t.id));save();render();toast(dup.length===1?'방금 넣은 할 일을 뺐어요':'방금 넣은 '+dup.length+'개를 뺐어요')},'빼기')},0);
+  // 이미 지난 날짜(예: 26일에 '25일 관리비')면 '다음 달로' 옮기기
+  const nextM=x=>{const [y,m,d]=x.split('-').map(Number),ny=m===12?y+1:y,nm=String(m===12?1:m+1).padStart(2,'0');return ny+'-'+nm+'-'+String(Math.min(d,lastDayOf(ny+'-'+nm+'-01'))).padStart(2,'0')};
+  if(pastT.length)setTimeout(()=>{const ids=new Set(pastT.map(o=>o.id));
+    toast(pastT.length===1?'이미 지난 날짜예요 · '+md(pastT[0].day):pastT.length+'개가 이미 지난 날짜예요',
+      ()=>{let n=0;for(const t of data().tasks)if(ids.has(t.id)&&t.day){t.day=nextM(t.day);t.month=mkOf(t.day);t.week=weekOfDay(t.day);n++}save();render();toast(n===1?'다음 달 '+md([...data().tasks].find(t=>ids.has(t.id)).day)+'로 옮겼어요':n+'개를 다음 달로 옮겼어요')},'다음 달로')},dup.length?8200:0);
   // 덧붙일 안내는 차례로 하나씩 보여 주기
   const more=[];
   if(cut)more.push(cut===1?'200자가 넘는 줄은 200자까지만 넣었어요':cut+'줄은 200자가 넘어서 200자까지만 넣었어요');
@@ -339,7 +344,7 @@ function addTasks(text,extra){
   if(dated)more.push(dated+'개는 적은 날짜에 넣었어요 (예: 내일·금요일·25일)');
   if(memo)more.push(memo===lines.length&&memo===1?'전에 고른 "'+(Dm.settings.tags[data().tasks[data().tasks.length-1].tag]||'')+'" 카테고리로 넣었어요':memo+'개는 전에 고른 카테고리로 넣었어요');
   if(guess)more.push(guess+'시는 오후 '+guess+'시로 넣었어요. 새벽이면 "오전 '+guess+'시"로 적어 주세요');
-  more.forEach((m,i)=>setTimeout(()=>toast(m),(dup.length?8200:1700)+i*2600));
+  more.forEach((m,i)=>setTimeout(()=>toast(m),(dup.length?8200:1700)+(pastT.length?8200:0)+i*2600));
   save();return lines.length;
 }
 function toggle(t){const u=snap(t);delete t.autoDone;t.done=!t.done;t.doneAt=t.done?todayS():null;save();rerender();toast(t.done?md(t.doneAt)+' 완료로 기록했어요':'완료를 취소했어요',u)}
@@ -800,7 +805,20 @@ window.addEventListener('scroll',()=>{if(popDay&&!document.querySelector('.mtop'
 // 먼슬리 할 일 적기 창: 위 달력에 가려 키보드에 안 보이던 문제 해결
 function multiAdd(title,extra,where){
   const ta=h('textarea',{rows:'5',placeholder:'한 줄에 하나씩 적어요\n예: 병원 예약\n    운동\n    3시 치과'});
-  const close=sheet(h('h3',{text:title}),ta,tagPicker(),h('button',{class:'btn pri',type:'button',text:'추가',on:{click:()=>{const n=addTasks(ta.value,extra);if(n){close();render();toast(n+'개를 '+where+' 추가했어요')}}}}));
+  // 위클리·데일리에서도 먼슬리처럼 루틴으로 넣기 (시작일: 데일리는 그 날, 위클리는 그 주에서 오늘 이후 첫날)
+  const t0=todayS(),wk=extra&&Number.isInteger(extra.week)?(weeksOf(st.y,st.m)[extra.week]||[]):[];
+  const base=extra&&extra.day?extra.day:wk.length?(wk[6]<t0?wk[0]:wk[0]>t0?wk[0]:t0):t0;
+  const picker=rulePicker(base,null,false);
+  const close=sheet(h('h3',{text:title}),ta,tagPicker(),
+    h('div',{class:'sec',text:'루틴 (학원·청소처럼 되풀이하는 일)'}),picker.el,
+    h('button',{class:'btn pri',type:'button',text:'추가',on:{click:()=>{
+      const rule=picker.get();
+      if(rule){if(rule.k==='week'&&!rule.dows.length){toast('루틴 요일을 골라 주세요');return}
+        const lines=ta.value.split('\n').map(x=>x.trim()).filter(Boolean).map(x=>x.slice(0,200));
+        if(!lines.length){toast('할 일을 적어 주세요');return}
+        const D=data();for(const l of lines){const p=splitTime(l);D.reps.push(ruleToRep({id:uid(),text:p.text,tag:st.addTag,time:p.time,start:base,skip:[]},rule))}
+        const bd=parse(base);save();ensureRepeats(st.y,st.m);ensureRepeats(bd.getFullYear(),bd.getMonth());close();render();toast(lines.length+'개를 '+ruleLabel(rule,base)+' 루틴으로 넣었어요');return}
+      const n=addTasks(ta.value,extra);if(n){close();render();toast(n+'개를 '+where+' 추가했어요')}}}}));
   setTimeout(()=>ta.focus(),60);
 }
 function monthAddSheet(){
@@ -812,9 +830,9 @@ function monthAddSheet(){
   const picker=rulePicker(base,null,false);
   const close=sheet(h('h3',{text:(st.m+1)+'월 할 일 적기'}),ta,
     h('div',{class:'sec',text:'카테고리'}),tagRow,
-    h('div',{class:'sec',text:'반복 (학원·청소처럼 되풀이하는 일)'}),picker.el,h('p',{class:'hint',text:'헬스·영어공부 같은 습관은 아래 습관 탭에서 체크해요.'}),
+    h('div',{class:'sec',text:'루틴 (학원·청소처럼 되풀이하는 일)'}),picker.el,h('p',{class:'hint',text:'헬스·영어공부 같은 습관은 아래 습관 탭에서 체크해요.'}),
     h('button',{class:'btn pri',type:'button',text:'추가',on:{click:()=>{
-      const rule=picker.get();if(rule&&rule.k==='week'&&!rule.dows.length){toast('반복할 요일을 골라 주세요');return}
+      const rule=picker.get();if(rule&&rule.k==='week'&&!rule.dows.length){toast('루틴 요일을 골라 주세요');return}
       const lines=ta.value.split('\n').map(x=>x.trim()).filter(Boolean);
       if(!lines.length){toast('할 일을 적어 주세요');return}
       st.addTag=tag;
@@ -845,7 +863,8 @@ function vMonthly(){
   const mq=h('input',{id:'mQuick',placeholder:'예: 25일 관리비, 병원 예약','aria-label':(st.m+1)+'월 할 일 바로 적기',maxlength:'200',on:{keydown:e=>{if(e.key==='Enter'&&!e.isComposing)mgo()}}});
   function mgo(){const n=addTasks(mq.value);if(n){mq.value='';render();toast((st.m+1)+'월에 추가했어요')}}
   const box=[h('div',{class:'add'},mq,h('button',{class:'go',type:'button',text:'추가',on:{click:mgo}})),
-    h('button',{type:'button',class:'addbig',on:{click:()=>monthAddSheet()}},h('b',{text:'+ 여러 개·반복으로 적기'}),h('span',{text:'한 번에 여러 줄 · 카테고리 · 반복(매주·평일·매월)'})),
+    tagPicker(),
+    h('button',{type:'button',class:'addbig',on:{click:()=>monthAddSheet()}},h('b',{text:'+ 여러 개·루틴으로 적기'}),h('span',{text:'한 번에 여러 줄 · 카테고리 · 루틴(매주·평일·매월)'})),
     (ts.length?h('p',{class:'hint',text:'누르면 완료 · 길게 누르면 고치기 · 길게 누른 채 달력 날짜로 끌면 그 날로 옮겨져요'}):null)];
   const undone=ts.filter(t=>!t.done).sort(byOrd),done=ts.filter(t=>t.done);
   const row=t=>taskRow(t,h('div',{class:'chips'},
@@ -892,7 +911,7 @@ function vWeekly(){
     h('div',{class:'add'},inp,h('button',{class:'go',type:'button',text:'추가',on:{click:go}})),
     h('button',{type:'button',class:'linkbtn',text:'+ 한 번에 여러 개 적기',on:{click:()=>multiAdd((st.week+1)+'주차 할 일 적기',{week:st.week},(st.week+1)+'주차에')}}),tagPicker(),
     isNow?lateBox('week'):null,strip,
-    dayN?h('p',{class:'hint',text:'데일리 일정·반복 '+dayN+'개는 위 요일 칸을 누르면 그 날에서 봐요.'}):null,
+    dayN?h('p',{class:'hint',text:'데일리 일정·루틴 '+dayN+'개는 위 요일 칸을 누르면 그 날에서 봐요.'}):null,
     ts.length||dayN?null:emptyBox('이 주에 정리된 할 일이 없어요. 먼슬리 할 일 아래 주차 숫자를 누르거나, 위 칸에 바로 적어 주세요.'),
     undone.length?[h('div',{class:'sec',text:'할 일 '+undone.length+' · 요일 칸으로 끌면 그 날로, 다른 할 일 위에 놓으면 순서 바꾸기'}),h('div',{class:'list','data-list':'w'},undone.map(row))]:null,
     done.length?[h('div',{class:'sec',text:'완료 '+done.length}),h('div',{class:'list'},done.map(row))]:null,
@@ -957,7 +976,7 @@ function vDaily(){
     habitBar(d),
     h('div',{class:'add'},inp,h('button',{class:'go',type:'button',text:'추가',on:{click:go}})),
     h('div',{class:'linkrow'},h('button',{type:'button',class:'linkbtn',text:'+ 한 번에 여러 개 적기',on:{click:()=>multiAdd(md(d)+' 할 일 적기',{week:wi,day:d,month:mkOf(d),src:'d'},md(d)+'에')}}),
-      h('button',{type:'button',class:'linkbtn rt',text:'🔁 루틴 한 번에 넣기'+((data().routines||[]).length?'':' (기상·등원 준비처럼)'),on:{click:()=>routineSheet(d)}})),tagPicker(),
+      h('button',{type:'button',class:'linkbtn rt',text:'📦 묶음 한 번에 넣기'+((data().routines||[]).length?'':' (기상·등원 준비처럼)'),on:{click:()=>routineSheet(d)}})),tagPicker(),
     h('p',{class:'hint',text:'앞에 시간을 쓰면(3시 병원) 타임라인에 들어가요.'},d!==todayS()?[' ',h('button',{type:'button',style:'color:var(--cobalt);font-weight:700',text:'오늘로 가기',on:{click:()=>{st.day=todayS();render()}}})]:null),
     !ts.length?emptyBox(fromWeek.length?'이 날 할 일이 없어요. 위에 바로 적거나, 아래 "이번 주에서 가져오기"에서 골라 주세요.':'이 날 할 일이 없어요. 위클리에서 요일을 누르거나 위에 바로 적어 주세요.'):null,
     untimed.length||timed.length?[h('div',{class:'sec','data-drop':'notime',text:'시간 안 정함 '+untimed.length+(untimed.length?' · 길게 눌러 아래 계획 칸으로 끌기':'')}),h('div',{class:'list','data-list':'u','data-drop':'notime'},untimed.map(t=>taskRow(t,null,{noDay:true,drop:true,brush:true,timer:d===todayS()})))]:null,
@@ -1010,7 +1029,7 @@ const itTag=(x,r)=>okTagI(x.tag)?x.tag:rtTag(r);
 function routineSheet(d){
   const D=data();D.routines=D.routines||[];
   const L=D.routines;
-  const close=sheet(h('h3',{text:'🔁 루틴 → '+md(d)+'에 넣기'}),
+  const close=sheet(h('h3',{text:'📦 묶음 → '+md(d)+'에 넣기'}),
     h('p',{class:'hint',style:'margin:0 2px 10px',text:'매일 하는 일을 묶어 두면 누를 때마다 그 날에 한꺼번에 들어가요. 고치기에서 요일을 정해 두면 그날 저절로 들어가요. 이미 있는 일은 두 번 넣지 않아요.'}),
     L.length?L.map(r=>h('div',{class:'rtc'},
       h('div',{class:'rth'},h('b',null,rtTag(r)!=null?h('i',{class:'rtd c'+colOf(rtTag(r))}):null,r.name,r.dows?h('span',{class:'rt-auto',text:rtDowLabel(r)+' 자동'}):null),h('button',{type:'button',class:'chip',text:'고치기',on:{click:()=>{close();routineEdit(d,r)}}})),
@@ -1018,13 +1037,13 @@ function routineSheet(d){
       h('div',{class:'rtb'},
         h('button',{type:'button',class:'btn pri',text:'시간까지 넣기',on:{click:()=>{close();applyRoutine(r,d,true)}}}),
         r.items.some(x=>x.time)?h('button',{type:'button',class:'btn',text:'시간 빼고 넣기',on:{click:()=>{close();applyRoutine(r,d,false)}}}):null))):
-      h('p',{class:'pop-e',style:'margin:6px 2px 12px',text:'아직 만든 루틴이 없어요.'}),
+      h('p',{class:'pop-e',style:'margin:6px 2px 12px',text:'아직 만든 묶음이 없어요.'}),
     L.some(r=>r.items.some(x=>x.time))?h('p',{class:'hint',style:'margin:2px 2px 10px',text:'시간 빼고 넣으면 "시간 안 정함"에 모여요. 그날 시간에 맞춰 길게 눌러 타임라인 칸으로 끌면 돼요.'}):null,
-    L.length<20?h('button',{class:'btn',type:'button',text:'+ 새 루틴 만들기',on:{click:()=>{close();routineEdit(d,null)}}}):null);
+    L.length<20?h('button',{class:'btn',type:'button',text:'+ 새 묶음 만들기',on:{click:()=>{close();routineEdit(d,null)}}}):null);
 }
 function routineEdit(d,r){
   const D=data();
-  const ni=h('input',{maxlength:'12',placeholder:'예: 아침 루틴, 퇴근 후'});ni.value=r?r.name:'';
+  const ni=h('input',{maxlength:'12',placeholder:'예: 아침 준비, 퇴근 후'});ni.value=r?r.name:'';
   const ta=h('textarea',{rows:'6',placeholder:'한 줄에 하나씩, 앞에 시간을 써요\n예: 6:10 기상\n    7시 등원 준비\n    8:30 집안일'});
   // 처음 만들 땐 그 날 시간 정한 일을 미리 채워 줘요 (다시 적지 않게) — 카테고리도 같이 가져와요
   const today=D.tasks.filter(t=>t.day===d&&t.time&&!t.fromRep).sort(byTime);
@@ -1064,19 +1083,19 @@ function routineEdit(d,r){
       dows.size?h('label',{class:'rt-nt'},(()=>{const c=h('input',{type:'checkbox'});c.checked=noTime;c.addEventListener('change',()=>{noTime=c.checked});return c})(),h('span',{text:'시간은 빼고 넣기 (날마다 시간이 바뀌면)'})):
         h('p',{class:'hint',style:'margin:4px 2px 0',text:'요일을 고르면 그날 저절로 들어가요. 안 고르면 누를 때만 들어가요.'}))};
   drawD();
-  const close=sheet(h('h3',{text:r?'루틴 고치기':'새 루틴 만들기'}),
+  const close=sheet(h('h3',{text:r?'묶음 고치기':'새 묶음 만들기'}),
     !r&&today.length?h('p',{class:'hint',style:'margin:0 2px 8px',text:md(d)+'에 시간 정한 일을 미리 넣어 뒀어요. 필요 없는 줄은 지워 주세요.'}):null,
     h('div',{class:'sec',text:'이름'}),ni,h('div',{class:'sec',text:'할 일 (최대 30줄)'}),ta,
     h('div',{class:'sec',text:'카테고리'}),tagRow,linesBox,
     h('div',{class:'sec',text:'저절로 넣을 요일'}),dRow,
     h('button',{class:'btn pri',type:'button',text:'저장',on:{click:()=>{
-      const name=ni.value.trim().slice(0,12)||'내 루틴';
+      const name=ni.value.trim().slice(0,12)||'내 묶음';
       const items=parse().map(x=>{const t=lineTag.has(x.text)?lineTag.get(x.text):rTag;return {text:x.text,time:x.time,tag:t===rTag?null:t}});
       if(!items.length){toast('할 일을 한 줄 이상 적어 주세요');ta.focus();return}
       const dw=dows.size?[...dows].sort():null;
       if(r){r.name=name;r.tag=rTag;r.items=items;r.dows=dw;r.noTime=noTime}else{D.routines=D.routines||[];D.routines.push({id:uid(),name,tag:rTag,dows:dw,noTime,items})}
-      save();close();render();routineSheet(d);toast('"'+name+'" 루틴을 저장했어요'+(dw&&dw.includes(dowOf(todayS()))&&(real.rtAuto[todayS()]||[]).length?' · 오늘에도 넣었어요':''))}}}),
-    r?h('button',{class:'btn del',type:'button',text:'이 루틴 지우기',on:{click:()=>{const L=D.routines,i=L.indexOf(r);if(i>=0)L.splice(i,1);save();close();routineSheet(d);toast('루틴을 지웠어요',()=>{data().routines.splice(Math.min(i,data().routines.length),0,r);save();render()})}}}):null);
+      save();close();render();routineSheet(d);toast('"'+name+'" 묶음을 저장했어요'+(dw&&dw.includes(dowOf(todayS()))&&(real.rtAuto[todayS()]||[]).length?' · 오늘에도 넣었어요':''))}}}),
+    r?h('button',{class:'btn del',type:'button',text:'이 묶음 지우기',on:{click:()=>{const L=D.routines,i=L.indexOf(r);if(i>=0)L.splice(i,1);save();close();routineSheet(d);toast('묶음을 지웠어요',()=>{data().routines.splice(Math.min(i,data().routines.length),0,r);save();render()})}}}):null);
   if(!r&&!today.length)setTimeout(()=>ni.focus(),50);
 }
 // ── 루틴 자동 넣기: 요일을 정해 둔 루틴은 그 요일에 저절로 들어가요 (하루에 한 번만, 지난 날은 건드리지 않아요)
@@ -1093,7 +1112,7 @@ function autoRoutines(){
       const res=putRoutine(r,d,!r.noTime);if(res.made.length)msgs.push({r,d,res})}}
   if(ch)save();
   if(msgs.length){const m=msgs[0];
-    setTimeout(()=>toast('"'+m.r.name+'" 루틴을 '+(m.d===t0?'오늘':md(m.d))+'에 넣었어요'+(msgs.length>1?' 외 '+(msgs.length-1)+'개':''),()=>{for(const x of msgs)undoRoutine(x.res);save();render()}),0)}
+    setTimeout(()=>toast('"'+m.r.name+'" 묶음을 '+(m.d===t0?'오늘':md(m.d))+'에 넣었어요'+(msgs.length>1?' 외 '+(msgs.length-1)+'개':''),()=>{for(const x of msgs)undoRoutine(x.res);save();render()}),0)}
 }
 function putRoutine(r,d,withTime){
   const D=data(),have=new Map(D.tasks.filter(t=>t.day===d).map(t=>[t.text,t]));
@@ -1220,7 +1239,7 @@ function vHabit(){
       return h('div',{class:'row'},h('div',{class:'top'},h('span',{class:'txt',text:(hb.icon?hb.icon+' ':'')+hb.name+' · '+n+'번 했어요'}),
         h('button',{type:'button',class:'chip on',text:'되살리기',on:{click:()=>{hb.arch=false;save();render();toast(hb.name+' 습관을 되살렸어요')}}}),
         h('button',{type:'button',class:'chip',text:'지우기',on:{click:()=>delHabit(hb)}})))}))]:null,
-    reps.length?[h('div',{class:'sec',text:'루틴 중 습관으로 옮기기'}),h('p',{class:'hint',text:'예전에 반복으로 넣은 것 중 습관(헬스·공부 등)만 옮기면 달력에서 빠지고 여기서 체크해요. 학원·청소 같은 일정은 그대로 두면 돼요.'}),
+    reps.length?[h('div',{class:'sec',text:'루틴 중 습관으로 옮기기'}),h('p',{class:'hint',text:'예전에 루틴으로 넣은 것 중 습관(헬스·공부 등)만 옮기면 달력에서 빠지고 여기서 체크해요. 학원·청소 같은 일정은 그대로 두면 돼요.'}),
       h('div',{class:'list'},reps.map(r=>h('div',{class:'row'},h('div',{class:'top'},h('span',{class:'txt',text:r.text+' · '+repLabel(r)}),h('button',{type:'button',class:'chip on',text:'습관으로',on:{click:()=>repToHabit(r)}})))))]:null];
 }
 function repToHabit(r){
@@ -1313,11 +1332,11 @@ function searchSheet(){
   const goMonth=mk=>{const [y,m]=mk.split('-').map(Number);st.y=y;st.m=m-1;st.week=null;st.tab='monthly';close();window.scrollTo(0,0);render()};
   const item=(title,sub,fn)=>h('button',{type:'button',class:'srow',on:{click:fn}},h('b',{text:title}),h('span',{text:sub}));
   let lim=60;
-  const run=keep=>{if(!keep)lim=60;const q=inp.value.trim().toLowerCase();if(!q){out.replaceChildren(h('p',{class:'hint',style:'margin:8px 2px',text:'할 일·반복·기념일·습관·일기·타임라인에서 찾아요.'}));return}
+  const run=keep=>{if(!keep)lim=60;const q=inp.value.trim().toLowerCase();if(!q){out.replaceChildren(h('p',{class:'hint',style:'margin:8px 2px',text:'할 일·루틴·기념일·습관·일기·타임라인에서 찾아요.'}));return}
     const W=q.split(/\s+/).filter(Boolean);const has=x=>{const v=String(x||'').toLowerCase();return W.every(w=>v.includes(w))}; /* 띄어 쓴 단어는 따로따로 찾기 (모두 들어간 것) */
     const R=[]; // 찾은 것은 모두 세고, 화면에는 60개씩만 그려요 (더 보기)
     D.tasks.filter(t=>has((t.time||'')+' '+t.text+' '+(t.memo||''))).sort((a,b)=>(b.day||b.month||'')<(a.day||a.month||'')?-1:1).forEach(t=>R.push(()=>item((t.done?'✓ ':'')+(t.time?t.time+' ':'')+t.text,t.day?md(t.day)+' 할 일':(+t.month.slice(5))+'월'+(t.week!=null?' '+(t.week+1)+'주차':'')+' 할 일',()=>t.day?goDay(t.day):goMonth(t.month))));
-    D.reps.filter(r=>has(r.text)).forEach(r=>R.push(()=>item('↻ '+r.text,'반복 · '+repLabel(r),()=>{close();settingsSheet()})));
+    D.reps.filter(r=>has(r.text)).forEach(r=>R.push(()=>item('↻ '+r.text,'루틴 · '+repLabel(r),()=>{close();settingsSheet()})));
     D.annivs.filter(a=>has(a.name)).forEach(a=>R.push(()=>item('🎂 '+a.name,'기념일 · '+annivWhen(a),()=>{close();annivSheet(a.date,null,a)})));
     (D.habits||[]).filter(x=>!x.arch&&has(x.name)).forEach(x=>R.push(()=>item((x.icon?x.icon+' ':'♡ ')+x.name,'습관',()=>{st.tab='habit';close();window.scrollTo(0,0);render()})));
     Object.keys(D.diary||{}).filter(d=>has(D.diary[d])).sort().reverse().forEach(d=>R.push(()=>item('📝 '+String(D.diary[d]).slice(0,40),md(d)+' 일기',()=>goDay(d))));
@@ -1488,14 +1507,14 @@ function editSheet(t){
   const close=sheet(h('h3',{text:'할 일 고치기'}),inp,memo,
     t.done?h('p',{text:md(t.doneAt)+'에 완료했어요'}):null,
     h('div',{class:'two'},h('label',null,h('span',{text:'날짜'}),di),h('label',null,h('span',{text:'시간'}),ti)),
-    rep?h('p',{text:'날짜를 바꾸면 이번 것만 반복에서 빠져요. 시간은 반복 전체에 적용돼요.'}):null,
+    rep?h('p',{text:'날짜를 바꾸면 이번 것만 루틴에서 빠져요. 시간은 루틴 전체에 적용돼요.'}):null,
     h('div',{class:'sec',text:'카테고리'}),tagRow,
-    h('div',{class:'sec',text:rep?'반복 ↻ '+repLabel(rep):'반복'}),picker.el,
+    h('div',{class:'sec',text:rep?'루틴 ↻ '+repLabel(rep):'루틴'}),picker.el,
     h('button',{class:'btn pri',type:'button',text:'저장',on:{click:()=>{
       const v=inp.value.trim();if(!v){toast('내용을 적어 주세요');return}
       const nd=di.value&&isDate(di.value)?di.value:null,nt=ti.value&&isTime(ti.value)?ti.value:null;
       const rule=picker.get();
-      if(rule&&rule.k==='week'&&!rule.dows.length){toast('반복할 요일을 골라 주세요');return}
+      if(rule&&rule.k==='week'&&!rule.dows.length){toast('루틴 요일을 골라 주세요');return}
       t.text=v.slice(0,200);t.tag=tag;{const mm=memo.value.trim().slice(0,500);if(mm)t.memo=mm;else delete t.memo}
       if(nd!==t.day){
         if(rep)detach(t)
@@ -1509,7 +1528,7 @@ function editSheet(t){
         const t0=todayS();
         D.tasks=D.tasks.filter(x=>!(x.rep===rep.id&&!x.done&&x.day>=t0&&!repHits(rep,x.day)));
         D.tasks.forEach(x=>{if(x.rep===rep.id&&!x.done&&x.day>=t0){x.text=t.text;x.tag=tag}});
-        save();ensureRepeats(st.y,st.m);close();render();if(changed)toast('반복을 바꿨어요 · '+repLabel(rep));return}
+        save();ensureRepeats(st.y,st.m);close();render();if(changed)toast('루틴을 바꿨어요 · '+repLabel(rep));return}
       if(!rep&&rule){
         const r=ruleToRep({id:uid(),text:t.text,tag,time:t.time||null,start:t.day||todayS(),skip:[]},rule);
         D.reps.push(r);const keep=t.done,mm=t.memo;
@@ -1526,13 +1545,13 @@ function editSheet(t){
     h('button',{class:'btn del',type:'button',text:rep?'이번 것만 지우기':'지우기',on:{click:()=>{
       const u=snap(t),skip0=rep?(rep.skip||[]).slice():null;if(rep)rep.skip=(rep.skip||[]).concat(t.day);
       D.tasks.splice(D.tasks.indexOf(t),1);save();close();render();toast('지웠어요',()=>{if(rep)rep.skip=skip0;u()})}}}),
-    rep?h('button',{class:'btn del',type:'button',text:'반복 멈추기 (오늘 이후 것 지우기)',on:{click:()=>stopRep(rep,close)}}):null);
+    rep?h('button',{class:'btn del',type:'button',text:'루틴 멈추기 (오늘 이후 것 지우기)',on:{click:()=>stopRep(rep,close)}}):null);
 }
 function stopRep(rep,close){
   const D=data();const t0=todayS();
   D.tasks=D.tasks.filter(x=>!(x.rep===rep.id&&!x.done&&x.day>=t0));
   D.tasks.forEach(x=>{if(x.rep===rep.id)x.rep=null});
-  D.reps=D.reps.filter(r=>r!==rep);save();if(close)close();render();toast('반복을 멈췄어요');
+  D.reps=D.reps.filter(r=>r!==rep);save();if(close)close();render();toast('루틴을 멈췄어요');
 }
 
 // 기념일·생일
@@ -1541,7 +1560,7 @@ function annivSheet(s,fromTask,edit){
   ni.value=edit?edit.name:fromTask?fromTask.text.slice(0,12):'';
   const picker=rulePicker(edit?edit.date:s,edit?annivRule(edit):null,true);
   const close=sheet(h('h3',{text:(edit?'기념일 고치기':md(s)+' 기념일')}),ni,
-    h('div',{class:'sec',text:'반복할까요?'}),picker.el,
+    h('div',{class:'sec',text:'루틴으로 넣을까요?'}),picker.el,
     h('p',{text:'날짜가 해마다 바뀌는 날은 "매년 5월 둘째 주 일요일", 모임은 "매월 셋째 주 토요일"처럼 골라요.'}),
     h('button',{class:'btn pri',type:'button',text:'저장',on:{click:()=>{const v=ni.value.trim().slice(0,12);if(!v){toast('이름을 적어 주세요');return}
       const r=picker.get();if(r&&r.k==='week'&&!r.dows.length){toast('요일을 골라 주세요');return}
@@ -1558,7 +1577,7 @@ const annivWhen=a=>ruleLabel(annivRule(a),a.date);
 function annivAct(a,d){
   const once=annivRule(a).k==='once';
   const close=sheet(h('h3',{text:'🎂 '+a.name}),h('p',{text:annivWhen(a)+' 기념일이에요.'}),
-    h('button',{class:'btn pri',type:'button',text:'이름·반복 고치기',on:{click:()=>{close();annivSheet(a.date,null,a)}}}),
+    h('button',{class:'btn pri',type:'button',text:'이름·루틴 고치기',on:{click:()=>{close();annivSheet(a.date,null,a)}}}),
     h('button',{class:'btn',type:'button',text:'📋 '+md(d)+' 할 일로 옮기기',on:{click:()=>{close();annivToTask(a,d)}}}),
     once?null:h('p',{class:'hint',style:'margin:-2px 2px 8px',text:'할 일로 옮기면 '+annivWhen(a)+' 반복은 없어지고 '+md(d)+' 하루 할 일로 남아요.'}),
     h('button',{class:'btn del',type:'button',text:'이 기념일 지우기',on:{click:()=>{close();delAnniv(a)}}}));
@@ -1628,10 +1647,10 @@ function settingsSheet(){
       h('div',{class:'sec',text:'기념일·생일 '+D.annivs.length}),
       D.annivs.length?D.annivs.slice().sort((a,b)=>a.date.slice(5)<b.date.slice(5)?-1:1).map(a=>h('div',{class:'set'},h('span',null,a.name,h('small',{text:annivWhen(a)})),h('button',{type:'button',class:'chip',text:'고치기',on:{click:()=>annivSheet(a.date,null,a)}}))):h('p',{text:'먼슬리 달력에서 날짜를 누르고 "+ 기념일·생일"로 넣어요.'}),
       h('div',{class:'sec',text:'카테고리 '+S.tags.length}),tagInputs,
-      h('div',{class:'sec',text:'내 기록 백업'}),h('p',{text:'할 일·반복·기념일·습관·기분·일기·타임라인을 한 파일로 옮겨요.'}),storageLine(),
+      h('div',{class:'sec',text:'내 기록 백업'}),h('p',{text:'할 일·루틴·기념일·습관·기분·일기·타임라인을 한 파일로 옮겨요.'}),storageLine(),
       backupBlock(),
       h('div',{class:'sec',text:'루틴 '+D.reps.length}),
-      D.reps.length?D.reps.map(r=>h('div',{class:'set'},h('span',null,r.text,h('small',{text:'↻ '+repLabel(r)+(r.time?' '+r.time:'')})),h('button',{type:'button',class:'chip',text:'반복 멈추기',on:{click:()=>{stopRep(r);settingsSheet()}}}))):h('p',{text:'할 일을 길게 누르고 "반복"을 고르면 여기에 모여요.'})].flat(Infinity).filter(x=>x!=null&&x!==false));
+      D.reps.length?D.reps.map(r=>h('div',{class:'set'},h('span',null,r.text,h('small',{text:'↻ '+repLabel(r)+(r.time?' '+r.time:'')})),h('button',{type:'button',class:'chip',text:'루틴 멈추기',on:{click:()=>{stopRep(r);settingsSheet()}}}))):h('p',{text:'할 일을 길게 누르고 "루틴"을 고르면 여기에 모여요.'})].flat(Infinity).filter(x=>x!=null&&x!==false));
   };
   draw();
   sheet(h('h3',{text:'설정'}),body);
@@ -1911,7 +1930,7 @@ document.addEventListener('mousemove',e=>{if(PT.on)paintMove(e)});
 document.addEventListener('mouseup',paintEnd);
 
 // ── 백업: 백업 파일로 저장·백업 불러오기 (폰을 바꿀 때)
-function cntTxt(o){const n=k=>Object.keys(o[k]||{}).length;const p=[['할 일',(o.tasks||[]).length],['반복',(o.reps||[]).length],['기념일',(o.annivs||[]).length],['루틴',(o.routines||[]).length],['습관',(o.habits||[]).length],['기분',n('mood')],['일기',n('diary')],['타임라인',n('logs')+'일']].filter(x=>x[1]&&x[1]!=='0일');
+function cntTxt(o){const n=k=>Object.keys(o[k]||{}).length;const p=[['할 일',(o.tasks||[]).length],['루틴',(o.reps||[]).length],['기념일',(o.annivs||[]).length],['묶음',(o.routines||[]).length],['습관',(o.habits||[]).length],['기분',n('mood')],['일기',n('diary')],['타임라인',n('logs')+'일']].filter(x=>x[1]&&x[1]!=='0일');
   return p.length?p.map(x=>x[0]+' '+x[1]+(String(x[1]).endsWith('일')?'':'개')).join(', '):'기록 없음'}
 // 백업 잠금: 비밀번호로 암호화 (PBKDF2-SHA256 60만 번 + AES-GCM, 7개 앱 같은 방식 · 폰 안에서만 처리)
 // 파일에 반복 횟수를 it 칸으로 적어요. it 칸이 없는 옛 백업은 예전 값(20만 번)으로 열어요.
@@ -2008,7 +2027,7 @@ function importData(o){
     out.annivs.push(x)}
   for(const a of (Array.isArray(d.aways)?d.aways:[]).slice(0,300)){if(!a||!okId(a.id)||!isDate(a.from)||!isDate(a.to)||a.from>a.to)continue;const name=cleanStr(a.name,8).trim();if(name)out.aways.push({id:a.id,name,from:a.from,to:a.to})}
   for(const r of (Array.isArray(d.routines)?d.routines:[]).slice(0,20)){if(!r||!okId(r.id)||!Array.isArray(r.items))continue;
-    const name=cleanStr(r.name,12).trim()||'내 루틴';
+    const name=cleanStr(r.name,12).trim()||'내 묶음';
     const okTg=v=>Number.isInteger(v)&&v>=0&&v<8?v:null;
     const items=r.items.slice(0,30).map(x=>x&&typeof x==='object'?{text:cleanStr(x.text,200).trim(),time:isTime(x.time)?x.time:null,tag:okTg(x.tag)}:null).filter(x=>x&&x.text);
     const dw=Array.isArray(r.dows)?[...new Set(r.dows.filter(v=>Number.isInteger(v)&&v>=0&&v<7))].sort():[];

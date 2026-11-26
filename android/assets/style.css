@@ -578,3 +578,7 @@ button.lab.big.tap{font-size:12px}
 .ver,.ver.new{width:52px;min-height:48px;font-size:14px}
 .ver.new{color:#F5B400;background:var(--card);font-weight:800;text-shadow:0 0 1px rgba(0,0,0,.35)}
 .upbar{display:block;height:8px;margin-top:8px;border-radius:999px;background:var(--line);overflow:hidden}.upbar i{display:block;height:100%;border-radius:inherit;background:var(--cobalt);transition:width .2s}.sheet .btn:disabled{opacity:.6}
+
+/* v2.33 작은 글자 키우기·주차 버튼 누르는 곳 넓히기 */
+.lab,.cell-l,.ht-d,.nz .ht-d,.ht.all .ht-d b,.rt.more,.strip small{font-size:11px}
+.chip.wk{min-width:40px}.chip.wk::after{left:-4px;right:-4px}
