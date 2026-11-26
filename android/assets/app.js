@@ -2156,7 +2156,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
     var ch = false, k, el;
     for (k in live) {
       el = find(k);
-      if (!el || !el.value.trim()) { delete live[k]; ch = true; }
+      if (!el || !el.value.trim() || !el.getClientRects().length) { delete live[k]; ch = true; } // 창이 닫혀 칸이 숨겨져도 지워요
       else if (el.value !== live[k].v) { live[k] = { v: el.value.slice(0, MAXLEN), t: Date.now() }; ch = true; }
     }
     if (ch) save();
@@ -2177,7 +2177,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
     if (tw && tw.parentNode) tw.parentNode.removeChild(tw);
     tw = document.createElement('div');
     tw.setAttribute('role', 'status');
-    tw.style.cssText = 'position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:2147483000;max-width:min(92vw,420px);box-sizing:border-box;padding:10px 12px 10px 14px;border-radius:14px;background:rgba(32,32,36,.94);color:#fff;font:14px/1.45 system-ui,-apple-system,sans-serif;display:flex;gap:10px;align-items:center;box-shadow:0 6px 20px rgba(0,0,0,.25)';
+    tw.style.cssText = 'position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:2147483000;width:min(92vw,420px);max-width:min(92vw,420px);box-sizing:border-box;padding:10px 12px 10px 14px;border-radius:14px;background:rgba(32,32,36,.94);color:#fff;font:14px/1.45 system-ui,-apple-system,sans-serif;display:flex;gap:10px;align-items:center;box-shadow:0 6px 20px rgba(0,0,0,.25)';
     var sp = document.createElement('span'); sp.textContent = msg; sp.style.flex = '1'; tw.appendChild(sp);
     if (btn) {
       var b = document.createElement('button'); b.type = 'button'; b.textContent = btn;
