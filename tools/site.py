@@ -110,5 +110,10 @@ if has_icon:
 for old in about.get('redirects', []):
     open(os.path.join(out, old), 'w', encoding='utf-8').write(
         '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=%s">' % ('app/' if old == 'app.html' and about.get('web') else './'))
+# 홈 화면에 앱처럼 설치 (PWA: 아이콘·설치 설정·오프라인·안내)
+import pwa
+if about.get('web'):
+    pwa.add(out, about)
+    pwa.guide(out, about)
 open(os.path.join(out, '.nojekyll'), 'w').close()
 print('site ok', len(notes), 'notes')
