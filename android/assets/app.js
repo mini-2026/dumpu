@@ -225,7 +225,7 @@ function rulePicker(base,init,forAnniv){
   const WD='0,1,2,3,4',isWd=()=>cur.k==='week'&&[...new Set(cur.dows)].sort().join()===WD;
   const opt=(r,label)=>{const on=r.k==='week'?(r.dows?isWd():cur.k==='week'&&!isWd()):cur.k===r.k&&(r.n==null||cur.n===r.n);return h('button',{type:'button',class:'chip'+(on?' on':''),'aria-pressed':on?'true':'false',text:label,on:{click:()=>{cur=Object.assign({},cur,r);if(r.k==='week'&&!r.dows&&isWd())cur.dows=[w];draw()}}})};
   const draw=()=>el.replaceChildren(...[
-    forAnniv?null:h('p',{class:'hint rule-base',style:'margin:0 0 4px',text:(base===todayS()?'오늘('+md(base).replace(/\(.\)$/,'')+')':md(base))+'부터 반복해요'}),
+    forAnniv?null:h('p',{class:'hint rule-base',style:'margin:0 0 4px',text:(base===todayS()?'오늘('+md(base).replace(/\(.\)$/,'')+')':md(base))+(cur.k?'부터 반복해요':'부터 반복하려면 아래에서 골라 주세요')}),
     h('div',{class:'chips rules'},
       forAnniv?opt({k:'once'},'한 번만'):opt({k:null},'안 함'),
       forAnniv?opt({k:'year'},'매년 '+M+'월 '+D+'일'):null,
@@ -909,7 +909,7 @@ function vWeekly(){
   return [head('위클리',(st.week+1)+'주차 · '+(parse(w[0]).getMonth()+1)+'/'+parse(w[0]).getDate()+'~'+(parse(w[6]).getMonth()+1)+'/'+parse(w[6]).getDate()),
     h('div',{class:'weeks'},ws.map((_,i)=>h('button',{class:'chip'+(i===st.week?' on':''),type:'button',text:(i+1)+'주차',on:{click:()=>{st.week=i;render()}}}))),
     h('div',{class:'add'},inp,h('button',{class:'go',type:'button',text:'추가',on:{click:go}})),
-    h('button',{type:'button',class:'linkbtn',text:'+ 한 번에 여러 개 적기',on:{click:()=>multiAdd((st.week+1)+'주차 할 일 적기',{week:st.week},(st.week+1)+'주차에')}}),tagPicker(),
+    h('button',{type:'button',class:'linkbtn',text:'+ 여러 개·루틴으로 적기',on:{click:()=>multiAdd((st.week+1)+'주차 할 일 적기',{week:st.week},(st.week+1)+'주차에')}}),tagPicker(),
     isNow?lateBox('week'):null,strip,
     dayN?h('p',{class:'hint',text:'데일리 일정·루틴 '+dayN+'개는 위 요일 칸을 누르면 그 날에서 봐요.'}):null,
     ts.length||dayN?null:emptyBox('이 주에 정리된 할 일이 없어요. 먼슬리 할 일 아래 주차 숫자를 누르거나, 위 칸에 바로 적어 주세요.'),
@@ -975,7 +975,7 @@ function vDaily(){
     d===todayS()?lateBox('day'):null,
     habitBar(d),
     h('div',{class:'add'},inp,h('button',{class:'go',type:'button',text:'추가',on:{click:go}})),
-    h('div',{class:'linkrow'},h('button',{type:'button',class:'linkbtn',text:'+ 한 번에 여러 개 적기',on:{click:()=>multiAdd(md(d)+' 할 일 적기',{week:wi,day:d,month:mkOf(d),src:'d'},md(d)+'에')}}),
+    h('div',{class:'linkrow'},h('button',{type:'button',class:'linkbtn',text:'+ 여러 개·루틴으로 적기',on:{click:()=>multiAdd(md(d)+' 할 일 적기',{week:wi,day:d,month:mkOf(d),src:'d'},md(d)+'에')}}),
       h('button',{type:'button',class:'linkbtn rt',text:'📦 묶음 한 번에 넣기'+((data().routines||[]).length?'':' (기상·등원 준비처럼)'),on:{click:()=>routineSheet(d)}})),tagPicker(),
     h('p',{class:'hint',text:'앞에 시간을 쓰면(3시 병원) 타임라인에 들어가요.'},d!==todayS()?[' ',h('button',{type:'button',style:'color:var(--cobalt);font-weight:700',text:'오늘로 가기',on:{click:()=>{st.day=todayS();render()}}})]:null),
     !ts.length?emptyBox(fromWeek.length?'이 날 할 일이 없어요. 위에 바로 적거나, 아래 "이번 주에서 가져오기"에서 골라 주세요.':'이 날 할 일이 없어요. 위클리에서 요일을 누르거나 위에 바로 적어 주세요.'):null,
@@ -1343,8 +1343,8 @@ function searchSheet(){
     const seen=new Set();Object.keys(D.logs||{}).sort().reverse().forEach(d=>{const L=D.logs[d];for(const k in L){const it=logItem(L[k]);const tx=it&&it.text;if(tx&&has(tx)&&!seen.has(d+tx)){seen.add(d+tx);R.push(()=>item('⏱ '+tx,md(d)+' 타임라인',()=>goDay(d)))}}});
     if(!R.length){out.replaceChildren(h('p',{class:'hint',style:'margin:8px 2px',text:'"'+inp.value.trim()+'"'+(jong(inp.value)?'이':'가')+' 들어간 기록이 없어요.'}));return}
     const more=R.length-lim;
-    out.replaceChildren(h('div',{class:'sec',text:'찾은 것 '+R.length+'개'}),...R.slice(0,lim).map(f=>f()),
-      more>0?h('button',{type:'button',class:'btn',text:'더 보기 ('+more+'개 더 있어요)',on:{click:()=>{lim+=60;run(true)}}}):null)};
+    out.replaceChildren(...[h('div',{class:'sec',text:'찾은 것 '+R.length+'개'}),...R.slice(0,lim).map(f=>f()),
+      more>0?h('button',{type:'button',class:'btn',text:'더 보기 ('+more+'개 더 있어요)',on:{click:()=>{lim+=60;run(true)}}}):null].filter(Boolean))};
   inp.addEventListener('input',()=>{clearTimeout(tm);tm=setTimeout(()=>run(),150)});
   close=sheet(h('h3',{text:'찾기'}),inp,out);run();setTimeout(()=>inp.focus(),60);
 }
@@ -1617,7 +1617,7 @@ function settingsSheet(){
     const hsw=h('button',{type:'button',class:'sw'+(S.hol?' on':''),'aria-label':'공휴일 표시',on:{click:()=>{S.hol=!S.hol;save();render();draw()}}});
     const tm=h('input',{type:'time',id:'sTime',value:S.time,on:{change:e=>{S.time=isTime(e.target.value)?e.target.value:'08:00';save();draw()}}});
     const preview=S.alarm?h('div',{class:'noti'},h('b',{text:'덤푸 · 매일 '+S.time}),left.length?'오늘 할 일 '+left.length+'개: '+(left[0].time?left[0].time+' ':'')+left[0].text+(left.length>1?' 외 '+(left.length-1)+'개':''):'오늘 할 일이 없어요. 데일리에 하나 적어 볼까요?'):null;
-    const tagInputs=[S.tags.map((n,i)=>{const x=h('input',{id:'tg'+i,maxlength:'8',style:'margin:4px 0;flex:1;min-width:0'});x.value=n;x.addEventListener('input',()=>{if(x.value.length>=8&&!x.dataset.w){x.dataset.w=1;toast('카테고리 이름은 8글자까지예요')}});x.addEventListener('change',()=>{const v=x.value.trim().slice(0,8)||n;if(S.tags.some((o,k)=>k!==i&&o===v)){x.value=n;toast('"'+v+'" 카테고리가 이미 있어요');return}S.tags[i]=v;save();render();setTimeout(draw,0)});
+    const tagInputs=[S.tags.map((n,i)=>{const x=h('input',{id:'tg'+i,maxlength:'8','aria-label':'카테고리 '+(i+1)+' 이름',style:'margin:4px 0;flex:1;min-width:0'});x.value=n;x.addEventListener('input',()=>{if(x.value.length>=8&&!x.dataset.w){x.dataset.w=1;toast('카테고리 이름은 8글자까지예요')}});x.addEventListener('change',()=>{const v=x.value.trim().slice(0,8)||n;if(S.tags.some((o,k)=>k!==i&&o===v)){x.value=n;toast('"'+v+'" 카테고리가 이미 있어요');return}S.tags[i]=v;save();render();setTimeout(draw,0)});
         return h('div',{class:'catrow','data-cat':i},h('span',{class:'grip','aria-hidden':'true',text:'≡'}),h('button',{type:'button',class:'dot c'+colOf(i),'aria-label':n+' 색 바꾸기 (지금 '+COLORS[colOf(i)]+')',on:{click:()=>{S.tagColor[i]=(colOf(i)+1)%8;save();render();draw()}}}),x,
           S.tags.length>1?h('button',{type:'button',class:'chip',text:'지우기','aria-label':n+' 카테고리 지우기',on:{click:()=>delTag(i,draw)}}):null)}),
       S.tags.length<8?h('button',{type:'button',class:'btn',text:'+ 카테고리 추가 ('+S.tags.length+'/8)',on:{click:()=>{const used=new Set(S.tags.map((_,k)=>colOf(k)));let c=0;while(used.has(c)&&c<7)c++;
@@ -1647,7 +1647,7 @@ function settingsSheet(){
       h('div',{class:'sec',text:'기념일·생일 '+D.annivs.length}),
       D.annivs.length?D.annivs.slice().sort((a,b)=>a.date.slice(5)<b.date.slice(5)?-1:1).map(a=>h('div',{class:'set'},h('span',null,a.name,h('small',{text:annivWhen(a)})),h('button',{type:'button',class:'chip',text:'고치기',on:{click:()=>annivSheet(a.date,null,a)}}))):h('p',{text:'먼슬리 달력에서 날짜를 누르고 "+ 기념일·생일"로 넣어요.'}),
       h('div',{class:'sec',text:'카테고리 '+S.tags.length}),tagInputs,
-      h('div',{class:'sec',text:'내 기록 백업'}),h('p',{text:'할 일·루틴·기념일·습관·기분·일기·타임라인을 한 파일로 옮겨요.'}),storageLine(),
+      h('div',{class:'sec',text:'내 기록 백업'}),h('p',{text:'할 일·루틴·기념일·습관·기분·일기·타임라인을 한 파일로 저장해요. 폰을 바꿀 때 그대로 옮길 수 있어요.'}),storageLine(),
       backupBlock(),
       h('div',{class:'sec',text:'루틴 '+D.reps.length}),
       D.reps.length?D.reps.map(r=>h('div',{class:'set'},h('span',null,r.text,h('small',{text:'↻ '+repLabel(r)+(r.time?' '+r.time:'')})),h('button',{type:'button',class:'chip',text:'루틴 멈추기',on:{click:()=>{stopRep(r);settingsSheet()}}}))):h('p',{text:'할 일을 길게 누르고 "루틴"을 고르면 여기에 모여요.'})].flat(Infinity).filter(x=>x!=null&&x!==false));
