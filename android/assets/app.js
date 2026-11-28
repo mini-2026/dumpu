@@ -921,6 +921,17 @@ function vWeekly(){
 }
 
 // ── 데일리 (시간 안 정한 일 + 타임라인)
+// 오늘 데일리 위에 7일 안에 오는 기념일·생일을 D-3처럼 보여 주기 (누르면 그 날로)
+function annivSoon(d){
+  const A=data().annivs;if(!A.length)return null;
+  const out=[];const x=parse(d);
+  for(let i=1;i<=7&&out.length<4;i++){x.setDate(x.getDate()+1);const s=ymd(x);
+    for(const a of A)if(ruleHits(annivRule(a),a.date,s))out.push({a,s,i})}
+  if(!out.length)return null;
+  return h('div',{class:'soon',role:'note'},h('span',{class:'soon-t',text:'🎂 다가오는 날'}),
+    out.slice(0,4).map(o=>h('button',{type:'button',class:'soon-b','aria-label':o.a.name+' '+md(o.s)+', '+o.i+'일 남음',on:{click:()=>{st.day=o.s;render()}}},
+      h('b',{text:'D-'+o.i}),' '+o.a.name.slice(0,14))));
+}
 function vDaily(){
   const d=st.day;const dt=parse(d);
   if(dt.getFullYear()!==st.y||dt.getMonth()!==st.m){st.y=dt.getFullYear();st.m=dt.getMonth();st.week=null;ensureRepeats(st.y,st.m)}
@@ -973,6 +984,7 @@ function vDaily(){
       h('div',{class:'t'},h('b',{text:'데일리'}),h('span',{text:(dt.getMonth()+1)+'월 '+(wi+1)+'주차 · '+DOW[dowOf(d)]+'요일'+(d===todayS()?' · 오늘':'')}),labs.length?h('div',null,labelSpans(d,'lab big')):null),
       h('div',{class:'nav'},h('button',{type:'button','aria-label':'전날',text:'‹',on:{click:()=>shift(-1)}}),h('button',{type:'button','aria-label':'다음날',text:'›',on:{click:()=>shift(1)}}),searchBtn(),gearBtn())),
     d===todayS()?lateBox('day'):null,
+    d===todayS()?annivSoon(d):null,
     habitBar(d),
     h('div',{class:'add'},inp,h('button',{class:'go',type:'button',text:'추가',on:{click:go}})),
     h('div',{class:'linkrow'},h('button',{type:'button',class:'linkbtn',text:'+ 여러 개·루틴으로 적기',on:{click:()=>multiAdd(md(d)+' 할 일 적기',{week:wi,day:d,month:mkOf(d),src:'d'},md(d)+'에')}}),
