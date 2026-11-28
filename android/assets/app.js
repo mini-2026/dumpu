@@ -1250,7 +1250,8 @@ function repToHabit(r){
 }
 function delHabit(hb,after){
   const D=data();
-  const close=sheet(h('h3',{text:hb.name+' 지우기'}),h('p',{text:'체크와 메모 기록이 모두 지워져요. 기록을 남기려면 "보관함으로"를 눌러 주세요.'}),
+  const close=sheet(h('h3',{text:hb.name+' 지우기'}),h('p',{text:hb.arch?'체크와 메모 기록이 모두 지워져요.':'체크와 메모 기록이 모두 지워져요. 기록을 남기려면 "보관함으로"를 눌러 주세요.'}),
+    hb.arch?null:h('button',{class:'btn',type:'button',text:'📦 보관함으로 (기록은 남아요)',on:{click:()=>{hb.arch=true;save();close();render();toast(hb.name+' 습관을 보관했어요')}}}),
     h('button',{class:'btn del',type:'button',text:'완전히 지우기',on:{click:()=>{const u=snapAll();D.habits=D.habits.filter(x=>x!==hb);
       for(const d in D.hchk){D.hchk[d]=D.hchk[d].filter(x=>x!==hb.id);if(!D.hchk[d].length)delete D.hchk[d]}
       for(const d in D.hnote){delete D.hnote[d][hb.id];if(!Object.keys(D.hnote[d]).length)delete D.hnote[d]}
@@ -1877,7 +1878,7 @@ function finishPaint(){
   if(PT.mode==='erase')undoAutoDone();
   pruneEnts();save();render();
 }
-// 칠해서 저절로 완료된 할 일은, 칠한 칸을 모두 지우면 다시 안 한 일로 (Jane 의견: 실수로 칠했다 지워도 완료가 남던 문제)
+// 칠해서 저절로 완료된 할 일은, 칠한 칸을 모두 지우면 다시 안 한 일로 (사용자 의견: 실수로 칠했다 지워도 완료가 남던 문제)
 function undoAutoDone(){const D=data(),used=new Set();for(const d in D.logs)for(const k in D.logs[d])used.add(D.logs[d][k]);
   for(const t of D.tasks)if(t.autoDone&&t.done&&!used.has(t.id)){t.done=false;t.doneAt=null;delete t.autoDone}}
 // 어디에도 안 쓰는 직접 쓴 기록은 지움
