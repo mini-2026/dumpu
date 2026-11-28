@@ -582,3 +582,5 @@ button.lab.big.tap{font-size:12px}
 /* v2.33 작은 글자 키우기·주차 버튼 누르는 곳 넓히기 */
 .lab,.cell-l,.ht-d,.nz .ht-d,.ht.all .ht-d b,.rt.more,.strip small{font-size:11px}
 .chip.wk{min-width:40px}.chip.wk::after{left:-4px;right:-4px}
+
+.soon{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 8px}.soon-t{font-size:13px;font-weight:700;color:var(--ann)}.soon-b{min-height:44px;padding:4px 10px;border-radius:18px;border:1.5px solid var(--ann);background:var(--card);color:inherit;font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.soon-b b{color:var(--ann)}
